@@ -129,7 +129,7 @@ serviceAccount:
 serviceMonitor:
   enabled: true
 
-# Traces configuration
+# Traces configuration - OTLP only
 traces:
   otlp:
     http:
@@ -138,6 +138,6 @@ traces:
       enabled: true
   jaeger:
     thriftHttp:
-      enabled: true
+      enabled: false
   zipkin:
-    enabled: true
+    enabled: false
