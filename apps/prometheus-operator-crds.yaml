@@ -1,0 +1,31 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus-operator-crds
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"  # Install CRDs before any other component
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: false  # Never auto-delete CRDs to prevent data loss
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - Replace=true  # Use replace strategy for large CRDs
+      - ServerSideApply=true  # Server-side apply to avoid annotation size limits
+  source:
+    repoURL: https://github.com/prometheus-community/helm-charts.git
+    targetRevision: kube-prometheus-stack-56.0.0  # Match the chart version
+    path: charts/kube-prometheus-stack/charts/crds/crds
+  ignoreDifferences:
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      jsonPointers:
+        - /metadata/annotations
+        - /spec/conversion/webhook/clientConfig/caBundle

@@ -4,6 +4,8 @@ kind: Application
 metadata:
   name: kube-prometheus-stack
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"  # Install after CRDs (wave -5)
 spec:
   project: default
   destination:
@@ -22,6 +24,9 @@ spec:
       helm:
         valueFiles:
           - $values/charts-values/kube-prom-values.yaml
+        parameters:
+          - name: crds.enabled
+            value: "false"
     - repoURL: https://github.com/dpenesi/LGTMA.git
       targetRevision: main
       ref: values

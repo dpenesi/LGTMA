@@ -1,5 +1,9 @@
 # Kube-Prometheus-Stack configuration for LGTMA stack
 
+# Disable CRDs installation (managed by separate Application)
+crds:
+  enabled: false
+
 # Disable Grafana (using separate deployment)
 grafana:
   enabled: false
