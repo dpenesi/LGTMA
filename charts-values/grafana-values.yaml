@@ -70,7 +70,7 @@ ingress:
 persistence:
   enabled: true
   size: 10Gi
-  storageClassName: gp3
+  storageClassName: ebs
 
 # Resources
 resources:

@@ -32,7 +32,7 @@ ingester:
   persistence:
     enabled: true
     size: 10Gi
-    storageClass: gp3
+    storageClass: ebs
   resources:
     limits:
       cpu: 1
