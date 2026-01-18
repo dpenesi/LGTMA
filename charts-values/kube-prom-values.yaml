@@ -45,7 +45,7 @@ prometheus:
           # Optional: Add cluster label
           - sourceLabels: [__address__]
             targetLabel: cluster
-            replacement: eks-wispro-02
+            replacement: <CLUSTER_NAME>
     
     # Service monitors
     serviceMonitorSelectorNilUsesHelmValues: false

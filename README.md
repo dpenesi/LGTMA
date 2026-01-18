@@ -1,6 +1,6 @@
 # LGTMA Stack - GitOps Observability
 
-Repositorio GitOps para desplegar el stack completo de observabilidad (Loki, Grafana, Tempo, Mimir, Alloy) en el cluster EKS **eks-wispro-02** usando ArgoCD con el patrón "app-of-apps".
+Repositorio GitOps para desplegar el stack completo de observabilidad (Loki, Grafana, Tempo, Mimir, Alloy) en clusters Kubernetes usando ArgoCD con el patrón "app-of-apps".
 
 ## Stack de Componentes
 
@@ -31,15 +31,17 @@ Repositorio GitOps para desplegar el stack completo de observabilidad (Loki, Gra
 
 ## Pre-requisitos
 
+✅ Kubernetes cluster (EKS, GKE, AKS, on-prem)
 ✅ ArgoCD instalado en namespace `argocd`  
-✅ Namespace `observability` creado  
-✅ Buckets S3 creados por Terraform  
-✅ IRSA roles configurados para Loki, Mimir y Tempo  
+✅ Namespace `observability` (se crea automáticamente)
+✅ **Para AWS**: Buckets S3 e IRSA roles configurados para Loki, Mimir y Tempo  
+✅ **Para otros clouds**: Configurar storage backend apropiado
 
 ## Configuración de Placeholders
 
-⚠️ **IMPORTANTE**: Antes de aplicar, debes reemplazar los siguientes placeholders en los archivos `charts-values/*.yaml`:
+⚠️ **IMPORTANTE**: Antes de aplicar, debes configurar los siguientes valores en los archivos `charts-values/*.yaml`:
 
+### Para AWS/EKS:
 - `<AWS_REGION>` - Región de AWS (ej: us-east-1)
 - `<ACCOUNT_ID>` - ID de la cuenta AWS
 - `<BUCKET_LOKI>` - Nombre del bucket S3 para Loki
@@ -48,72 +50,86 @@ Repositorio GitOps para desplegar el stack completo de observabilidad (Loki, Gra
 - `<LOKI_IRSA_ROLE_NAME>` - Nombre del rol IRSA para Loki
 - `<MIMIR_IRSA_ROLE_NAME>` - Nombre del rol IRSA para Mimir
 - `<TEMPO_IRSA_ROLE_NAME>` - Nombre del rol IRSA para Tempo
+- `<CLUSTER_NAME>` - Nombre de tu cluster para labels
+
+### Para GCP/GKE o Azure/AKS:
+Adaptar la configuración de storage en cada values file según tu cloud provider.
 
 ## Despliegue
 
-### 1. Aplicar la Root Application
-
-Si ya existe una aplicación `root` en ArgoCD, actualízala para apuntar a este repositorio:
+### 1. Fork o clone este repositorio
 
 ```bash
-kubectl -n argocd patch app root --type merge -p '{
-  "spec": {
-    "source": {
-      "repoURL": "https://github.com/dpenesi/LGTMA.git",
-      "targetRevision": "main",
-      "path": "app-of-apps"
-    }
-  }
-}'
+git clone https://github.com/dpenesi/LGTMA.git
+cd LGTMA
 ```
 
-O crea la aplicación root desde cero:
+### 2. Configurar valores para tu entorno
+
+```bash
+# Ejemplo para AWS
+export AWS_REGION="us-east-1"
+export ACCOUNT_ID="123456789012"
+export CLUSTER_NAME="my-k8s-cluster"
+export BUCKET_LOKI="my-loki-bucket"
+export BUCKET_MIMIR="my-mimir-bucket"
+export BUCKET_TEMPO="my-tempo-bucket"
+export LOKI_IRSA_ROLE="loki-s3-role"
+export MIMIR_IRSA_ROLE="mimir-s3-role"
+export TEMPO_IRSA_ROLE="tempo-s3-role"
+
+# Reemplazar placeholders
+find charts-values/ -name "*.yaml" -type f -exec sed -i \
+  -e "s|<AWS_REGION>|${AWS_REGION}|g" \
+  -e "s|<ACCOUNT_ID>|${ACCOUNT_ID}|g" \
+  -e "s|<CLUSTER_NAME>|${CLUSTER_NAME}|g" \
+  -e "s|<BUCKET_LOKI>|${BUCKET_LOKI}|g" \
+  -e "s|<BUCKET_MIMIR>|${BUCKET_MIMIR}|g" \
+  -e "s|<BUCKET_TEMPO>|${BUCKET_TEMPO}|g" \
+  -e "s|<LOKI_IRSA_ROLE_NAME>|${LOKI_IRSA_ROLE}|g" \
+  -e "s|<MIMIR_IRSA_ROLE_NAME>|${MIMIR_IRSA_ROLE}|g" \
+  -e "s|<TEMPO_IRSA_ROLE_NAME>|${TEMPO_IRSA_ROLE}|g" \
+  {} \;
+```
+
+### 3. Actualizar repoURL en los manifiestos
+
+Si hiciste fork del repositorio, actualiza la URL:
+
+```bash
+# Reemplazar con tu fork
+export REPO_URL="https://github.com/YOUR_ORG/LGTMA.git"
+
+sed -i "s|https://github.com/dpenesi/LGTMA.git|${REPO_URL}|g" app-of-apps/root-observability.yaml
+sed -i "s|https://github.com/dpenesi/LGTMA.git|${REPO_URL}|g" apps/observability-stack.yaml
+```
+
+### 4. Commit y push cambios
+
+```bash
+git add .
+git commit -m "Configure for my environment"
+git push origin main
+```
+
+### 5. Aplicar Root Application
 
 ```bash
 kubectl apply -f app-of-apps/root-observability.yaml
 ```
 
-### 2. Verificar el despliegue
+### 6. Verificar despliegue
 
 ```bash
-# Ver todas las aplicaciones en ArgoCD
+# Ver aplicaciones en ArgoCD
 kubectl get applications -n argocd
 
-# Ver el estado de los pods en el namespace observability
+# Ver pods
 kubectl -n observability get pods
 
-# Ver detalles de la aplicación root
-kubectl -n argocd describe app root-observability | egrep -i "sync|health"
-
-# Ver logs de ArgoCD para troubleshooting
-kubectl -n argocd logs -l app.kubernetes.io/name=argocd-application-controller --tail=100
-```
-
-### 3. Acceder a Grafana
-
-```bash
-# Port-forward a Grafana
+# Acceder a Grafana
 kubectl -n observability port-forward svc/grafana 3000:80
-
-# Credenciales por defecto (CAMBIAR):
-# Usuario: admin
-# Password: CHANGEME
-```
-
-## Sincronización y Troubleshooting
-
-```bash
-# Forzar sincronización de la root app
-kubectl -n argocd patch app root-observability -p '{"metadata":{"annotations":{"argocd.argoproj.io/refresh":"normal"}}}' --type=merge
-
-# Ver eventos de ArgoCD
-kubectl -n argocd get events --sort-by='.lastTimestamp'
-
-# Ver configuración de una aplicación específica
-kubectl -n argocd get app loki -o yaml
-
-# Revisar si hay errores de autenticación con el repo
-kubectl -n argocd describe app root-observability | grep -A 10 "Conditions"
+# http://localhost:3000 - admin/CHANGEME
 ```
 
 ## Arquitectura de Datos
@@ -142,13 +158,68 @@ kubectl -n argocd describe app root-observability | grep -A 10 "Conditions"
    └────────────────────────────────┘
 ```
 
-## Notas Importantes
+## Personalización
 
-- ✅ **Sin secretos**: Este repositorio NO contiene credenciales. Los buckets y roles IAM se configuran mediante placeholders.
-- ✅ **IRSA**: La autenticación con S3 se realiza mediante IRSA (IAM Roles for Service Accounts), sin claves estáticas.
-- ✅ **GitOps puro**: Cualquier cambio en la configuración debe hacerse vía commit al repositorio.
-- ⚠️ **Grafana password**: Cambiar el password de admin después del primer login.
+### Ajustar replicas y recursos
 
-## Soporte
+Edita los archivos en `charts-values/` según tus necesidades:
+- Replicas de cada componente
+- Requests y limits de CPU/memoria
+- Tamaño de storage
+- Retention periods
 
-Para issues o mejoras, crear un issue en este repositorio.
+### Datasources en Grafana
+
+Los datasources vienen pre-configurados:
+- **Mimir**: Métricas (default)
+- **Loki**: Logs
+- **Tempo**: Traces con correlación a logs y métricas
+
+## Troubleshooting
+
+```bash
+# Ver logs de ArgoCD
+kubectl -n argocd logs -l app.kubernetes.io/name=argocd-application-controller --tail=100
+
+# Verificar sync status
+kubectl -n argocd get applications
+
+# Ver eventos en observability namespace
+kubectl -n observability get events --sort-by='.lastTimestamp'
+
+# Logs de componentes específicos
+kubectl -n observability logs -l app.kubernetes.io/name=loki
+kubectl -n observability logs -l app.kubernetes.io/name=mimir
+```
+
+## Documentación Adicional
+
+- [DEPLOYMENT.md](DEPLOYMENT.md) - Guía detallada de despliegue
+- [deploy.sh](deploy.sh) - Script interactivo de despliegue
+
+## Seguridad
+
+- ✅ **Sin secretos**: Este repositorio NO contiene credenciales
+- ✅ **IRSA**: Autenticación con S3 mediante IAM roles
+- ⚠️ **Grafana password**: Cambiar después del primer login
+- 🔐 **Ingress**: Configurar TLS y autenticación según necesidades
+
+## Compatibilidad
+
+- Kubernetes 1.24+
+- ArgoCD 2.8+
+- Helm charts:
+  - grafana/grafana 7.3.0
+  - grafana/loki 6.16.0
+  - grafana/mimir-distributed 5.4.0
+  - grafana/tempo-distributed 1.9.0
+  - grafana/alloy 0.5.0
+  - prometheus-community/kube-prometheus-stack 56.0.0
+
+## Contribuciones
+
+Issues y pull requests son bienvenidos para mejorar este stack de observabilidad.
+
+## Licencia
+
+MIT License - Siéntete libre de usar y modificar según tus necesidades.

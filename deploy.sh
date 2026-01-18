@@ -1,9 +1,8 @@
 #!/bin/bash
-# Comandos finales para desplegar LGTMA Stack en eks-wispro-02
+# Script interactivo para desplegar LGTMA Stack en Kubernetes
 
 echo "======================================================================"
 echo "LGTMA Stack - Comandos de Despliegue"
-echo "Cluster: eks-wispro-02"
 echo "Repositorio: https://github.com/dpenesi/LGTMA.git"
 echo "======================================================================"
 echo ""
@@ -22,6 +21,7 @@ echo ""
 cat << 'EOF'
 export AWS_REGION="us-east-1"  # Tu región AWS
 export ACCOUNT_ID="123456789012"  # Tu Account ID
+export CLUSTER_NAME="my-k8s-cluster"  # Nombre de tu cluster
 export BUCKET_LOKI="loki-bucket-name"  # Bucket S3 para Loki
 export BUCKET_MIMIR="mimir-bucket-name"  # Bucket S3 para Mimir
 export BUCKET_TEMPO="tempo-bucket-name"  # Bucket S3 para Tempo
@@ -30,10 +30,10 @@ export MIMIR_IRSA_ROLE="mimir-irsa-role"  # Rol IRSA de Mimir
 export TEMPO_IRSA_ROLE="tempo-irsa-role"  # Rol IRSA de Tempo
 
 # Reemplazar en todos los archivos
-cd /home/dpenesi/Despliegues/InfaIA/Full-Observabilidad/LGTMA
 find charts-values/ -name "*.yaml" -type f -exec sed -i \
   -e "s|<AWS_REGION>|${AWS_REGION}|g" \
   -e "s|<ACCOUNT_ID>|${ACCOUNT_ID}|g" \
+  -e "s|<CLUSTER_NAME>|${CLUSTER_NAME}|g" \
   -e "s|<BUCKET_LOKI>|${BUCKET_LOKI}|g" \
   -e "s|<BUCKET_MIMIR>|${BUCKET_MIMIR}|g" \
   -e "s|<BUCKET_TEMPO>|${BUCKET_TEMPO}|g" \
@@ -43,8 +43,8 @@ find charts-values/ -name "*.yaml" -type f -exec sed -i \
   {} \;
 
 # Commit y push
-git add charts-values/
-git commit -m "Configure AWS resources for eks-wispro-02"
+git add charts-values/for my environment
+git commit -m "Configure AWS resources for <CLUSTER_NAME>"
 git push origin main
 EOF
 

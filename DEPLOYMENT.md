@@ -1,15 +1,20 @@
 # Guía de Despliegue - LGTMA Stack
 
+Este documento contiene instrucciones detalladas para desplegar el stack LGTMA en tu cluster Kubernetes.
+
 ## Paso 1: Reemplazar Placeholders
 
 Antes de desplegar, debes reemplazar los siguientes placeholders en los archivos `charts-values/*.yaml`:
 
 ```bash
-cd /home/dpenesi/Despliegues/InfaIA/Full-Observabilidad/LGTMA
+# Clona el repositorio y navega a él
+git clone https://github.com/YOUR_ORG/LGTMA.git
+cd LGTMA
 
 # Ejemplo de reemplazo (ajusta los valores reales):
 export AWS_REGION="us-east-1"
 export ACCOUNT_ID="123456789012"
+export CLUSTER_NAME="my-k8s-cluster"
 export BUCKET_LOKI="loki-bucket-name"
 export BUCKET_MIMIR="mimir-bucket-name"
 export BUCKET_TEMPO="tempo-bucket-name"
@@ -21,6 +26,7 @@ export TEMPO_IRSA_ROLE="tempo-irsa-role"
 find charts-values/ -name "*.yaml" -type f -exec sed -i \
   -e "s|<AWS_REGION>|${AWS_REGION}|g" \
   -e "s|<ACCOUNT_ID>|${ACCOUNT_ID}|g" \
+  -e "s|<CLUSTER_NAME>|${CLUSTER_NAME}|g" \
   -e "s|<BUCKET_LOKI>|${BUCKET_LOKI}|g" \
   -e "s|<BUCKET_MIMIR>|${BUCKET_MIMIR}|g" \
   -e "s|<BUCKET_TEMPO>|${BUCKET_TEMPO}|g" \
@@ -34,7 +40,7 @@ git diff charts-values/
 
 # Commit y push de los cambios
 git add charts-values/
-git commit -m "Configure AWS placeholders for eks-wispro-02"
+git commit -m "Configure AWS placeholders for <CLUSTER_NAME>"
 git push origin main
 ```
 

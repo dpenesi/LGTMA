@@ -44,7 +44,7 @@ alloy:
         // Add cluster label
         stage.static_labels {
           values = {
-            cluster = "eks-wispro-02",
+            cluster = "<CLUSTER_NAME>",
           }
         }
 
