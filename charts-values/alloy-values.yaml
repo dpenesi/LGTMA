@@ -106,18 +106,7 @@ alloy:
           }
         }
       }
-
-# Service Account
-serviceAccount:
-  create: true
-  name: alloy
-
-# RBAC for reading pods and logs
-rbac:
-  create: true
-
-# Volume mounts for reading container logs
-alloy:
+  
   extraVolumes:
     - name: varlog
       hostPath:
@@ -133,6 +122,15 @@ alloy:
     - name: varlibdockercontainers
       mountPath: /var/lib/docker/containers
       readOnly: true
+
+# Service Account
+serviceAccount:
+  create: true
+  name: alloy
+
+# RBAC for reading pods and logs
+rbac:
+  create: true
 
 # Resources
 resources:
