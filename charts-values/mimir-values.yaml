@@ -1,0 +1,154 @@
+# Mimir configuration for LGTMA stack
+# Distributed mode with minimal replicas and S3 backend
+
+global:
+  clusterDomain: cluster.local
+  dnsService: kube-dns
+  dnsNamespace: kube-system
+
+mimir:
+  structuredConfig:
+    # Multitenancy disabled
+    multitenancy_enabled: false
+    
+    # Storage configuration with S3
+    common:
+      storage:
+        backend: s3
+        s3:
+          endpoint: s3.<AWS_REGION>.amazonaws.com
+          region: <AWS_REGION>
+          bucket_name: <BUCKET_MIMIR>
+          # IRSA authentication - no credentials needed
+    
+    blocks_storage:
+      backend: s3
+      s3:
+        bucket_name: <BUCKET_MIMIR>
+        region: <AWS_REGION>
+      tsdb:
+        dir: /data/tsdb
+    
+    alertmanager_storage:
+      backend: s3
+      s3:
+        bucket_name: <BUCKET_MIMIR>
+        region: <AWS_REGION>
+    
+    ruler_storage:
+      backend: s3
+      s3:
+        bucket_name: <BUCKET_MIMIR>
+        region: <AWS_REGION>
+    
+    # Limits
+    limits:
+      max_global_series_per_user: 1000000
+      ingestion_rate: 100000
+      ingestion_burst_size: 200000
+
+# Minimal replicas for each component
+ingester:
+  replicas: 1
+  persistentVolume:
+    enabled: true
+    size: 10Gi
+    storageClass: gp3
+  resources:
+    limits:
+      cpu: 1
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+distributor:
+  replicas: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+querier:
+  replicas: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+query_frontend:
+  replicas: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+store_gateway:
+  replicas: 1
+  persistentVolume:
+    enabled: true
+    size: 10Gi
+    storageClass: gp3
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+compactor:
+  replicas: 1
+  persistentVolume:
+    enabled: true
+    size: 10Gi
+    storageClass: gp3
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+# Nginx gateway
+nginx:
+  enabled: true
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# ServiceAccount with IRSA annotation for S3 access
+serviceAccount:
+  create: true
+  name: mimir
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::<ACCOUNT_ID>:role/<MIMIR_IRSA_ROLE_NAME>
+
+# Monitoring
+metaMonitoring:
+  serviceMonitor:
+    enabled: true
+  grafanaAgent:
+    enabled: false
+
+# MinIO disabled (using S3)
+minio:
+  enabled: false

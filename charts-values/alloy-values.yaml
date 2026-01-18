@@ -1,0 +1,149 @@
+# Alloy configuration for LGTMA stack
+# DaemonSet mode for log collection
+
+# Controller configuration
+controller:
+  type: daemonset
+  nodeSelector: {}
+  tolerations: []
+
+# Alloy configuration
+alloy:
+  configMap:
+    create: true
+    content: |
+      // Logging configuration
+      logging {
+        level  = "info"
+        format = "logfmt"
+      }
+
+      // Discover Kubernetes pods
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      // Discover Kubernetes nodes
+      discovery.kubernetes "nodes" {
+        role = "node"
+      }
+
+      // Read container logs
+      loki.source.kubernetes "pods" {
+        targets    = discovery.kubernetes.pods.targets
+        forward_to = [loki.process.add_labels.receiver]
+      }
+
+      // Process logs and add labels
+      loki.process "add_labels" {
+        forward_to = [loki.write.loki.receiver]
+
+        // Extract Kubernetes metadata
+        stage.docker {}
+
+        // Add cluster label
+        stage.static_labels {
+          values = {
+            cluster = "eks-wispro-02",
+          }
+        }
+
+        // Label allow list to prevent high cardinality
+        stage.label_keep {
+          values = [
+            "namespace",
+            "pod",
+            "container",
+            "app",
+            "job",
+            "cluster",
+          ]
+        }
+
+        // Drop noisy logs (optional - customize as needed)
+        stage.match {
+          selector = "{namespace=\"kube-system\"} |~ \"probe\""
+          action   = "drop"
+        }
+      }
+
+      // Write logs to Loki
+      loki.write "loki" {
+        endpoint {
+          url = "http://loki-gateway.observability.svc:80/loki/api/v1/push"
+          
+          // Batch configuration
+          batch_wait = "1s"
+          batch_size = 1048576  // 1MB
+        }
+
+        external_labels = {
+          source = "alloy",
+        }
+      }
+
+      // Metrics scraping for Alloy self-monitoring
+      prometheus.scrape "alloy" {
+        targets = [{
+          __address__ = "127.0.0.1:12345",
+        }]
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      // Write metrics to Mimir
+      prometheus.remote_write "mimir" {
+        endpoint {
+          url = "http://mimir-nginx.observability.svc:80/api/v1/push"
+          
+          queue_config {
+            capacity             = 10000
+            max_shards           = 10
+            min_shards           = 1
+            max_samples_per_send = 5000
+            batch_send_deadline  = "5s"
+            min_backoff          = "30ms"
+            max_backoff          = "5s"
+          }
+        }
+      }
+
+# Service Account
+serviceAccount:
+  create: true
+  name: alloy
+
+# RBAC for reading pods and logs
+rbac:
+  create: true
+
+# Volume mounts for reading container logs
+alloy:
+  extraVolumes:
+    - name: varlog
+      hostPath:
+        path: /var/log
+    - name: varlibdockercontainers
+      hostPath:
+        path: /var/lib/docker/containers
+  
+  extraVolumeMounts:
+    - name: varlog
+      mountPath: /var/log
+      readOnly: true
+    - name: varlibdockercontainers
+      mountPath: /var/lib/docker/containers
+      readOnly: true
+
+# Resources
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Enable service monitor for Prometheus Operator
+serviceMonitor:
+  enabled: true
+  interval: 30s

@@ -1,0 +1,82 @@
+# Grafana configuration for LGTMA stack
+replicas: 1
+
+adminUser: admin
+adminPassword: CHANGEME
+
+# Datasources configuration
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      # Mimir as default datasource for metrics
+      - name: Mimir
+        type: prometheus
+        access: proxy
+        url: http://mimir-query-frontend.observability.svc:8080/prometheus
+        isDefault: true
+        editable: true
+        jsonData:
+          timeInterval: 30s
+          queryTimeout: 60s
+
+      # Loki for logs
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://loki-gateway.observability.svc:80
+        editable: true
+        jsonData:
+          maxLines: 1000
+
+      # Tempo for traces
+      - name: Tempo
+        type: tempo
+        access: proxy
+        url: http://tempo-query-frontend.observability.svc:3100
+        editable: true
+        jsonData:
+          tracesToLogs:
+            datasourceUid: 'Loki'
+            tags: ['job', 'instance', 'pod', 'namespace']
+            mappedTags: [{ key: 'service.name', value: 'service' }]
+            mapTagNamesEnabled: false
+            spanStartTimeShift: '1h'
+            spanEndTimeShift: '1h'
+            filterByTraceID: false
+            filterBySpanID: false
+          tracesToMetrics:
+            datasourceUid: 'Mimir'
+            tags: [{ key: 'service.name', value: 'service' }, { key: 'job' }]
+            spanStartTimeShift: '1h'
+            spanEndTimeShift: '1h'
+          serviceMap:
+            datasourceUid: 'Mimir'
+          search:
+            hide: false
+          nodeGraph:
+            enabled: true
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+
+# Ingress disabled by default
+ingress:
+  enabled: false
+
+# Persistence
+persistence:
+  enabled: true
+  size: 10Gi
+  storageClassName: gp3
+
+# Resources
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi

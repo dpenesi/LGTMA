@@ -1,0 +1,169 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: "56.0.0"
+    helm:
+      valueFiles:
+        - $values/charts-values/kube-prom-values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: "56.0.0"
+      helm:
+        valueFiles:
+          - $values/charts-values/kube-prom-values.yaml
+    - repoURL: https://github.com/dpenesi/LGTMA.git
+      targetRevision: main
+      ref: values
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mimir
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions: ["CreateNamespace=true"]
+  sources:
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: mimir-distributed
+      targetRevision: "5.4.0"
+      helm:
+        valueFiles:
+          - $values/charts-values/mimir-values.yaml
+    - repoURL: https://github.com/dpenesi/LGTMA.git
+      targetRevision: main
+      ref: values
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions: ["CreateNamespace=true"]
+  sources:
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: loki
+      targetRevision: "6.16.0"
+      helm:
+        valueFiles:
+          - $values/charts-values/loki-values.yaml
+    - repoURL: https://github.com/dpenesi/LGTMA.git
+      targetRevision: main
+      ref: values
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tempo
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions: ["CreateNamespace=true"]
+  sources:
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: tempo-distributed
+      targetRevision: "1.9.0"
+      helm:
+        valueFiles:
+          - $values/charts-values/tempo-values.yaml
+    - repoURL: https://github.com/dpenesi/LGTMA.git
+      targetRevision: main
+      ref: values
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions: ["CreateNamespace=true"]
+  sources:
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: grafana
+      targetRevision: "7.3.0"
+      helm:
+        valueFiles:
+          - $values/charts-values/grafana-values.yaml
+    - repoURL: https://github.com/dpenesi/LGTMA.git
+      targetRevision: main
+      ref: values
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: alloy
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions: ["CreateNamespace=true"]
+  sources:
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: alloy
+      targetRevision: "0.5.0"
+      helm:
+        valueFiles:
+          - $values/charts-values/alloy-values.yaml
+    - repoURL: https://github.com/dpenesi/LGTMA.git
+      targetRevision: main
+      ref: values

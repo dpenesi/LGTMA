@@ -1,0 +1,143 @@
+# Tempo configuration for LGTMA stack
+# Distributed mode with S3 backend
+
+global:
+  clusterDomain: cluster.local
+
+tempo:
+  # Multitenancy disabled
+  multitenancyEnabled: false
+  
+  # Storage configuration
+  storage:
+    trace:
+      backend: s3
+      s3:
+        bucket: <BUCKET_TEMPO>
+        endpoint: s3.<AWS_REGION>.amazonaws.com
+        region: <AWS_REGION>
+        # IRSA authentication - no credentials needed
+  
+  # Retention
+  retention: 168h  # 7 days
+  
+  # Global overrides
+  global_overrides:
+    max_bytes_per_trace: 5000000
+    max_traces_per_user: 10000
+
+# Minimal replicas for components
+ingester:
+  replicas: 1
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: gp3
+  resources:
+    limits:
+      cpu: 1
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+distributor:
+  replicas: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  config:
+    log_received_spans:
+      enabled: false
+
+querier:
+  replicas: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+queryFrontend:
+  replicas: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  query:
+    enabled: true
+
+compactor:
+  replicas: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+metricsGenerator:
+  replicas: 1
+  enabled: true
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  config:
+    storage:
+      path: /var/tempo/wal
+      remote_write:
+        - url: http://mimir-nginx.observability.svc:80/api/v1/push
+          send_exemplars: true
+
+# Gateway
+gateway:
+  enabled: true
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# ServiceAccount with IRSA annotation for S3 access
+serviceAccount:
+  create: true
+  name: tempo
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::<ACCOUNT_ID>:role/<TEMPO_IRSA_ROLE_NAME>
+
+# Monitoring
+serviceMonitor:
+  enabled: true
+
+# Traces configuration
+traces:
+  otlp:
+    http:
+      enabled: true
+    grpc:
+      enabled: true
+  jaeger:
+    thriftHttp:
+      enabled: true
+  zipkin:
+    enabled: true

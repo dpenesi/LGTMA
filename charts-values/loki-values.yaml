@@ -1,0 +1,97 @@
+# Loki configuration for LGTMA stack
+# Running in simple scalable mode with S3 backend
+
+loki:
+  auth_enabled: false
+  
+  commonConfig:
+    replication_factor: 1
+  
+  storage:
+    type: s3
+    bucketNames:
+      chunks: <BUCKET_LOKI>
+      ruler: <BUCKET_LOKI>
+      admin: <BUCKET_LOKI>
+    s3:
+      region: <AWS_REGION>
+      # IRSA authentication - no credentials needed
+  
+  schemaConfig:
+    configs:
+      - from: 2024-01-01
+        store: tsdb
+        object_store: s3
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+  
+  limits_config:
+    retention_period: 168h  # 7 days
+    ingestion_rate_mb: 10
+    ingestion_burst_size_mb: 20
+    max_query_series: 10000
+    max_query_parallelism: 32
+
+# Single binary mode for simplicity
+deploymentMode: SingleBinary
+
+singleBinary:
+  replicas: 1
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: gp3
+  resources:
+    limits:
+      cpu: 1
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+# Backend components - minimal for single binary
+backend:
+  replicas: 0
+
+read:
+  replicas: 0
+
+write:
+  replicas: 0
+
+# Gateway for unified entry point
+gateway:
+  enabled: true
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# ServiceAccount with IRSA annotation for S3 access
+serviceAccount:
+  create: true
+  name: loki
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::<ACCOUNT_ID>:role/<LOKI_IRSA_ROLE_NAME>
+
+# Monitoring
+monitoring:
+  serviceMonitor:
+    enabled: true
+  selfMonitoring:
+    enabled: false
+    grafanaAgent:
+      installOperator: false
+
+# Testing disabled
+test:
+  enabled: false
