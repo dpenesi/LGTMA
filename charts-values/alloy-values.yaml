@@ -106,6 +106,55 @@ alloy:
           }
         }
       }
+
+      // ============================================
+      // OTLP Traces Pipeline
+      // ============================================
+
+      // OTLP receiver for traces (gRPC and HTTP)
+      otelcol.receiver.otlp "default" {
+        grpc {
+          endpoint = "0.0.0.0:4317"
+        }
+
+        http {
+          endpoint = "0.0.0.0:4318"
+        }
+
+        output {
+          traces  = [otelcol.processor.attributes.add_cluster_info.input]
+        }
+      }
+
+      // Add cluster and basic k8s attributes to traces
+      otelcol.processor.attributes "add_cluster_info" {
+        action {
+          key    = "cluster"
+          value  = "<CLUSTER_NAME>"
+          action = "insert"
+        }
+
+        output {
+          traces = [otelcol.processor.batch.default.input]
+        }
+      }
+
+      // Batch processor for traces
+      otelcol.processor.batch "default" {
+        output {
+          traces = [otelcol.exporter.otlp.tempo.input]
+        }
+      }
+
+      // Export traces to Tempo
+      otelcol.exporter.otlp "tempo" {
+        client {
+          endpoint = "tempo-distributor.observability.svc:4317"
+          tls {
+            insecure = true
+          }
+        }
+      }
   
   extraVolumes:
     - name: varlog
