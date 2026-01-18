@@ -55,6 +55,9 @@ prometheus:
     # Scrape interval
     scrapeInterval: 30s
     evaluationInterval: 30s
+  
+  # Additional scrape configs for custom targets
+  additionalServiceMonitors: []
 
 # Alertmanager configuration
 alertmanager:
@@ -124,7 +127,3 @@ defaultRules:
     nodeExporterRecording: true
     prometheus: true
     prometheusOperator: true
-
-# Additional scrape configs for custom targets
-prometheus:
-  additionalServiceMonitors: []
